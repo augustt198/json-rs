@@ -209,18 +209,18 @@ impl Parser {
         match self.next() {
             Some(first) => {
                 match first {
-                    JsonBoolTok(b)   => JsonBool(b),
-                    JsonNullTok         => JsonNull,
+                    JsonBoolTok(b)  => JsonBool(b),
+                    JsonNullTok     => JsonNull,
                     StringTok(s)    => JsonString(s),
                     IntNum(i)       => JsonInt(i),
                     DecimalNum(f)   => JsonFloat(f),
                     LBracket        => self.parse_array(),
                     LBrace          => self.parse_object(),
-                    o               => fail!("Unexpected token: {}", o)
+                    other           => fail!("Unexpected token: {}", other)
                 }
             }
             _ => {
-                JsonNull
+                fail!("Unexpected end of file");
             }
         }
         
