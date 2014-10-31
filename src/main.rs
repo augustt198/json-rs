@@ -260,7 +260,10 @@ impl Parser {
 
             if peak.is_some() {
                 match peak.unwrap() {
-                    RBrace => { break },
+                    RBrace => {
+                        self.next();
+                        break;
+                    },
                     StringTok(s) => {
                         self.next();
                         peak = self.peak();
