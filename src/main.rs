@@ -296,7 +296,7 @@ impl Parser {
     }
 }
 
-#[deriving(Show)]
+#[deriving(Show, PartialEq)]
 struct JsonMap {
     fields: HashMap<String, JsonValue>
 }
@@ -307,7 +307,7 @@ impl JsonMap {
     }
 }
 
-#[deriving(Show)]
+#[deriving(Show, PartialEq)]
 enum JsonValue {
     JsonObject(JsonMap),
     JsonArray(Vec<JsonValue>),
@@ -403,6 +403,25 @@ fn empty_arr() {
     match json {
         JsonArray(empty_arr) => {}, // ok
         _ => fail!("Expected JsonArray([])")
+    }
+}
+
+#[test]
+fn arr_all_types() {
+    let json_string = "[true, false, null, 0, 0.0, [], {}]".to_string();
+    let json        = JsonValue::from_string(json_string);
+    
+    let map = JsonMap { fields: HashMap::new() };
+    let arr = vec![
+        JsonBool(true), JsonBool(false), JsonNull, JsonInt(0),
+        JsonFloat(0.0), JsonArray(vec!()), JsonObject(map)
+    ];
+
+    match json {
+        JsonArray(vec) => {
+            assert!(vec == arr);
+        },
+        _ => fail!("Expected JsonArray([...])")
     }
 }
 
