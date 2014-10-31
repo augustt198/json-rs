@@ -1,0 +1,5 @@
+[package]
+
+name = "json"
+version = "0.0.1"
+authors = ["August <augustt198@gmail.com>"]
