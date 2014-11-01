@@ -301,12 +301,6 @@ struct JsonMap {
     fields: HashMap<String, JsonValue>
 }
 
-impl JsonMap {
-    fn get(key: String) -> Option<JsonValue> {
-        None
-    }
-}
-
 #[deriving(Show, PartialEq)]
 enum JsonValue {
     JsonObject(JsonMap),
@@ -419,7 +413,7 @@ fn arr_all_types() {
 
     match json {
         JsonArray(vec) => {
-            assert!(vec == arr);
+            assert_eq!(vec, arr);
         },
         _ => fail!("Expected JsonArray([...])")
     }
@@ -438,3 +432,21 @@ fn empty_object() {
         _ => fail!("Expected JsonObject")
     }
 }
+
+#[test]
+fn object_vals() {
+    let json_string = "{\"key\":\"value\"}".to_string();
+    let json        = JsonValue::from_string(json_string);
+
+    let mut hash_map = HashMap::new();
+    hash_map.insert("key".to_string(), JsonString("value".to_string()));
+    let json_map = JsonMap { fields: hash_map };
+
+    match json {
+        JsonObject(obj) => {
+            assert_eq!(obj, json_map);
+        },
+        _ => fail!("Expected JsonObject")
+    }
+}
+
