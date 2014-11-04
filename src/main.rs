@@ -118,7 +118,7 @@ impl Lexer {
         } else if ident_str == FALSE_LITERAL {
             Some(JsonBoolTok(false))
         } else {
-            fail!("Unexpected identifier: {}", ident_str)
+            panic!("Unexpected identifier: {}", ident_str)
         }
     }
 
@@ -144,12 +144,12 @@ impl Lexer {
         if has_period {
             match from_str::<f64>(num_str) {
                 Some(n) => Some(DecimalNum(n)),
-                None    => fail!("Invalid number format") 
+                None    => panic!("Invalid number format") 
             }
         } else {
             match from_str::<i64>(num_str) {
                 Some(n) => Some(IntNum(n)),
-                None    => fail!("Invalid number format")
+                None    => panic!("Invalid number format")
             }
         }
     }
@@ -216,11 +216,11 @@ impl Parser {
                     DecimalNum(f)   => JsonFloat(f),
                     LBracket        => self.parse_array(),
                     LBrace          => self.parse_object(),
-                    other           => fail!("Unexpected token: {}", other)
+                    other           => panic!("Unexpected token: {}", other)
                 }
             }
             _ => {
-                fail!("Unexpected end of file");
+                panic!("Unexpected end of file");
             }
         }
         
@@ -247,7 +247,7 @@ impl Parser {
                     }
                 }
             } else {
-                fail!("Unexpected end of array");
+                panic!("Unexpected end of array");
             }
         }
         JsonArray(vec)
@@ -270,9 +270,9 @@ impl Parser {
                         if peak.is_some() {
                             match peak.unwrap() {
                                 Colon => { self.next(); },
-                                _     => { fail!("Expected colon") }
+                                _     => { panic!("Expected colon") }
                             }
-                        } else { fail!("Unexpected end of object") }
+                        } else { panic!("Unexpected end of object") }
 
                         map.insert(s, self.parse());
 
@@ -288,7 +288,7 @@ impl Parser {
                             }
                         }
                     },
-                    _   => fail!("Expected right brace or string")
+                    _   => panic!("Expected right brace or string")
                 }
             }
         }
@@ -338,7 +338,7 @@ fn null_literal() {
     
     match json {
         JsonNull => {}, // ok
-        _ => fail!("Expected JsonNull")
+        _ => panic!("Expected JsonNull")
     }
 }
 
@@ -349,7 +349,7 @@ fn true_literal() {
     
     match json {
         JsonBool(true) => {}, // ok
-        _ => fail!("Expected JsonBool(true)")
+        _ => panic!("Expected JsonBool(true)")
     }
 }
 
@@ -360,7 +360,7 @@ fn false_literal() {
     
     match json {
         JsonBool(false) => {}, // ok
-        _ => fail!("Expected JsonBool(false)")
+        _ => panic!("Expected JsonBool(false)")
     }
 }
 
@@ -371,7 +371,7 @@ fn int_literal() {
     
     match json {
         JsonInt(42) => {}, // ok
-        _ => fail!("Expected JsonInt(42)")
+        _ => panic!("Expected JsonInt(42)")
     }
 }
 
@@ -382,7 +382,7 @@ fn float_literal() {
     
     match json {
         JsonFloat(42f64) => {}, // ok
-        _ => fail!("Expected JsonFloat(42)")
+        _ => panic!("Expected JsonFloat(42)")
     }
 }
 
@@ -396,7 +396,7 @@ fn empty_arr() {
 
     match json {
         JsonArray(empty_arr) => {}, // ok
-        _ => fail!("Expected JsonArray([])")
+        _ => panic!("Expected JsonArray([])")
     }
 }
 
@@ -415,7 +415,7 @@ fn arr_all_types() {
         JsonArray(vec) => {
             assert_eq!(vec, arr);
         },
-        _ => fail!("Expected JsonArray([...])")
+        _ => panic!("Expected JsonArray([...])")
     }
 }
 
@@ -429,7 +429,7 @@ fn empty_object() {
         JsonObject(map) => {
             assert!(map.fields.is_empty())
         }
-        _ => fail!("Expected JsonObject")
+        _ => panic!("Expected JsonObject")
     }
 }
 
@@ -446,7 +446,7 @@ fn object_vals() {
         JsonObject(obj) => {
             assert_eq!(obj, json_map);
         },
-        _ => fail!("Expected JsonObject")
+        _ => panic!("Expected JsonObject")
     }
 }
 
