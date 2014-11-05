@@ -1,5 +1,13 @@
 use std::collections::HashMap;
 
+// scanning
+
+// TODO add line/column tracking
+#[deriving(Show)]
+struct JsonError {
+    msg: &'static str
+}
+
 struct StringReader {
     pos:    uint,
     source: String,
@@ -70,9 +78,9 @@ impl Lexer {
             
             else if c == '"' { return self.next_str_token() }
 
-            else if is_alpha(c) { return self.next_ident_token(c) }
+            else if is_alpha(c) { return Some(self.next_ident_token(c).unwrap()) }
 
-            else if is_digit(c) { return self.next_num_token(c) }
+            else if is_digit(c) { return Some(self.next_num_token(c).unwrap()) }
         }
     }
 
@@ -94,7 +102,7 @@ impl Lexer {
     }
 
     // Next "identifier" token (JsonBool value or null)
-    fn next_ident_token(&mut self, first: char) -> Option<Token> {
+    fn next_ident_token(&mut self, first: char) -> Result<Token, JsonError> {
         let mut res = String::new();
         res.push(first);
         loop {
@@ -112,17 +120,17 @@ impl Lexer {
         }
         let ident_str = res.as_slice();
         if ident_str == NULL_LITERAL {
-            Some(JsonNullTok)
+            Ok(JsonNullTok)
         } else if ident_str == TRUE_LITERAL {
-            Some(JsonBoolTok(true))
+            Ok(JsonBoolTok(true))
         } else if ident_str == FALSE_LITERAL {
-            Some(JsonBoolTok(false))
+            Ok(JsonBoolTok(false))
         } else {
-            panic!("Unexpected identifier: {}", ident_str)
+            Err(JsonError { msg: "Unexpected identifier" })
         }
     }
 
-    fn next_num_token(&mut self, first: char) -> Option<Token> {
+    fn next_num_token(&mut self, first: char) -> Result<Token, JsonError> {
         let mut res = String::new();
         res.push(first);
         let mut has_period = false;
@@ -143,13 +151,13 @@ impl Lexer {
         let num_str = res.as_slice();
         if has_period {
             match from_str::<f64>(num_str) {
-                Some(n) => Some(DecimalNum(n)),
-                None    => panic!("Invalid number format") 
+                Some(n) => Ok(DecimalNum(n)),
+                None    => Err(JsonError { msg: "Invalid number format" })
             }
         } else {
             match from_str::<i64>(num_str) {
-                Some(n) => Some(IntNum(n)),
-                None    => panic!("Invalid number format")
+                Some(n) => Ok(IntNum(n)),
+                None    => Err(JsonError { msg: "Invalid number format" })
             }
         }
     }
@@ -169,6 +177,8 @@ enum Token {
     Comma,              // ,
     Colon               // :
 }
+
+// parsing
 
 struct Parser {
     tokens: Vec<Token>,
