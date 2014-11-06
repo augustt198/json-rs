@@ -387,7 +387,7 @@ fn main() {
 #[test]
 fn null_literal() {
     let json_string = "null".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
         JsonNull => {}, // ok
@@ -398,7 +398,7 @@ fn null_literal() {
 #[test]
 fn true_literal() {
     let json_string = "true".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
         JsonBool(true) => {}, // ok
@@ -409,7 +409,7 @@ fn true_literal() {
 #[test]
 fn false_literal() {
     let json_string = "false".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
         JsonBool(false) => {}, // ok
@@ -420,7 +420,7 @@ fn false_literal() {
 #[test]
 fn int_literal() {
     let json_string = "42".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
         JsonInt(42) => {}, // ok
@@ -431,7 +431,7 @@ fn int_literal() {
 #[test]
 fn float_literal() {
     let json_string = "42.0".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
         JsonFloat(42f64) => {}, // ok
@@ -443,7 +443,7 @@ fn float_literal() {
 #[allow(unused_variables)]
 fn empty_arr() {
     let json_string = "[]".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
 
     let empty_arr: Vec<JsonValue> = vec!();
 
@@ -456,7 +456,7 @@ fn empty_arr() {
 #[test]
 fn arr_all_types() {
     let json_string = "[true, false, null, 0, 0.0, [], {}]".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
     
     let map = JsonMap { fields: HashMap::new() };
     let arr = vec![
@@ -475,9 +475,8 @@ fn arr_all_types() {
 #[test]
 fn empty_object() {
     let json_string = "{}".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
 
-    let empty_map: HashMap<String, JsonValue> = HashMap::new();
     match json {
         JsonObject(map) => {
             assert!(map.fields.is_empty())
@@ -489,7 +488,7 @@ fn empty_object() {
 #[test]
 fn object_vals() {
     let json_string = "{\"key\":\"value\"}".to_string();
-    let json        = JsonValue::from_string(json_string);
+    let json        = JsonValue::from_string(json_string).unwrap();
 
     let mut hash_map = HashMap::new();
     hash_map.insert("key".to_string(), JsonString("value".to_string()));
