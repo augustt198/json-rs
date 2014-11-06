@@ -225,7 +225,13 @@ impl Parser {
     fn new(lex: &mut Lexer) -> Result<Parser, JsonError> {
         let mut parser = Parser { tokens: vec!(), pos: 0 };
         loop {
-            parser.tokens.push(try!(lex.next_token()))
+            let token = try!(lex.next_token());
+            let done_reading = match token.ty {
+                EOF => true,
+                _   => false
+            };
+            parser.tokens.push(token);
+            if done_reading { break }
         }
         Ok(parser)
     }
