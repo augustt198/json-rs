@@ -62,43 +62,70 @@ impl Lexer {
         }
     }
 
-    fn next_token(&mut self) -> Option<Token> {
+    fn next_token(&mut self) -> Result<Token, JsonError> {
         loop {
             let c = match self.reader.read() {
                 Some(chr) => chr,
-                None => return None
+                None => return Ok(self.tok(EOF))
             };
 
-            if      c == '{' { return Some(LBrace) }
-            else if c == '}' { return Some(RBrace) }
-            else if c == '[' { return Some(LBracket) }
-            else if c == ']' { return Some(RBracket) }
-            else if c == ',' { return Some(Comma) }
-            else if c == ':' { return Some(Colon) }
+            let val =
+            if      c == '{' { self.tok(LBrace) }
+            else if c == '}' { self.tok(RBrace) }
+            else if c == '[' { self.tok(LBracket) }
+            else if c == ']' { self.tok(RBracket) }
+            else if c == ',' { self.tok(Comma) }
+            else if c == ':' { self.tok(Colon) }
             
-            else if c == '"' { return self.next_str_token() }
+            else if c == '"'    { try!(self.next_str_token()) }
+            else if is_alpha(c) { try!(self.next_ident_token(c)) }
+            else if is_digit(c) { try!(self.next_num_token(c)) }
+            
+            else { continue };
+            return Ok(val)
+        }
+    }
 
-            else if is_alpha(c) { return Some(self.next_ident_token(c).unwrap()) }
-
-            else if is_digit(c) { return Some(self.next_num_token(c).unwrap()) }
+    // create token from current line and column
+    fn tok(&self, ty: TokenType) -> Token {
+        Token {
+            ty:     ty,
+            line:   self.reader.line,
+            cols:   (self.reader.col, self.reader.col)
         }
     }
 
     // Next string token
-    fn next_str_token(&mut self) -> Option<Token> {
+    fn next_str_token(&mut self) -> Result<Token, JsonError> {
         let mut s = String::new();
+
+        let start_pos   = self.reader.col;
+        let mut end_pos = start_pos;
+        let line        = self.reader.line;
+
         loop {
             let c = self.reader.peak();
             match c {
                 Some(chr) => {
                     self.reader.read();
                     if chr == '"' { break }
-                    else { s.push(chr) }
+                    else {
+                        end_pos = self.reader.col;
+                        s.push(chr)
+                    }
                 },
-                None => { break }
+                None => {
+                    return Err(JsonError {
+                        msg: "Unexpected end of file in string literal"
+                    });
+                }
             }
         }
-        Some(StringTok(s))
+        Ok(Token {
+            ty:     StringTok(s),
+            line:   line,
+            cols:   (start_pos, end_pos)
+        })
     }
 
     // Next "identifier" token (JsonBool value or null)
@@ -120,11 +147,11 @@ impl Lexer {
         }
         let ident_str = res.as_slice();
         if ident_str == NULL_LITERAL {
-            Ok(JsonNullTok)
+            Ok(self.tok(JsonNullTok))
         } else if ident_str == TRUE_LITERAL {
-            Ok(JsonBoolTok(true))
+            Ok(self.tok(JsonBoolTok(true)))
         } else if ident_str == FALSE_LITERAL {
-            Ok(JsonBoolTok(false))
+            Ok(self.tok(JsonBoolTok(false)))
         } else {
             Err(JsonError { msg: "Unexpected identifier" })
         }
@@ -151,12 +178,12 @@ impl Lexer {
         let num_str = res.as_slice();
         if has_period {
             match from_str::<f64>(num_str) {
-                Some(n) => Ok(DecimalNum(n)),
+                Some(n) => Ok(self.tok(DecimalNum(n))),
                 None    => Err(JsonError { msg: "Invalid number format" })
             }
         } else {
             match from_str::<i64>(num_str) {
-                Some(n) => Ok(IntNum(n)),
+                Some(n) => Ok(self.tok(IntNum(n))),
                 None    => Err(JsonError { msg: "Invalid number format" })
             }
         }
@@ -164,7 +191,14 @@ impl Lexer {
 }
 
 #[deriving(Show, Clone)]
-enum Token {
+struct Token {
+    ty:     TokenType,
+    line:   uint,
+    cols:   (uint, uint)
+}
+
+#[deriving(Show, Clone)]
+enum TokenType {
     LBrace,             // {
     RBrace,             // }
     LBracket,           // [
@@ -175,7 +209,9 @@ enum Token {
     JsonBoolTok(bool),   // true|false
     JsonNullTok,            // null
     Comma,              // ,
-    Colon               // :
+    Colon,              // :
+
+    EOF
 }
 
 // parsing
@@ -186,15 +222,12 @@ struct Parser {
 }
 
 impl Parser {
-    fn new(lex: &mut Lexer) -> Parser {
+    fn new(lex: &mut Lexer) -> Result<Parser, JsonError> {
         let mut parser = Parser { tokens: vec!(), pos: 0 };
         loop {
-            match lex.next_token() {
-                Some(tok)   => parser.tokens.push(tok),
-                None        => break
-            }
+            parser.tokens.push(try!(lex.next_token()))
         }
-        parser
+        Ok(parser)
     }
 
     fn peak(&self) -> Option<Token> {
@@ -215,41 +248,41 @@ impl Parser {
 }
 
 impl Parser {
-    fn parse(&mut self) -> JsonValue {
+    fn parse(&mut self) -> Result<JsonValue, JsonError> {
         match self.next() {
             Some(first) => {
-                match first {
-                    JsonBoolTok(b)  => JsonBool(b),
-                    JsonNullTok     => JsonNull,
-                    StringTok(s)    => JsonString(s),
-                    IntNum(i)       => JsonInt(i),
-                    DecimalNum(f)   => JsonFloat(f),
+                match first.ty {
+                    JsonBoolTok(b)  => Ok(JsonBool(b)),
+                    JsonNullTok     => Ok(JsonNull),
+                    StringTok(s)    => Ok(JsonString(s)),
+                    IntNum(i)       => Ok(JsonInt(i)),
+                    DecimalNum(f)   => Ok(JsonFloat(f)),
                     LBracket        => self.parse_array(),
                     LBrace          => self.parse_object(),
-                    other           => panic!("Unexpected token: {}", other)
+                    other           => Err(JsonError { msg: "Unexpected token" } )
                 }
             }
-            _ => {
-                panic!("Unexpected end of file");
+            None => {
+                Err(JsonError { msg: "Unexpected end of file" })
             }
         }
         
     }
 
-    fn parse_array(&mut self) -> JsonValue {
+    fn parse_array(&mut self) -> Result<JsonValue, JsonError> {
         let mut vec: Vec<JsonValue> = vec!();
         loop {
             let mut peak = self.peak();
 
             if peak.is_some() {
-                match peak.unwrap() {
+                match peak.unwrap().ty {
                     RBracket    => { self.next(); break },
                     _           => {
-                        vec.push(self.parse());
+                        vec.push(try!(self.parse()));
                         peak = self.peak();
                         
                         if peak.is_some() {
-                            match peak.unwrap() {
+                            match peak.unwrap().ty {
                                 Comma   => { self.next(); }, // consume comma
                                 _       => {}                // keep more elements or `]`
                             }
@@ -257,19 +290,21 @@ impl Parser {
                     }
                 }
             } else {
-                panic!("Unexpected end of array");
+                return Err(JsonError {
+                    msg: "Unexpected end of array"
+                })
             }
         }
-        JsonArray(vec)
+        Ok(JsonArray(vec))
     }
 
-    fn parse_object(&mut self) -> JsonValue {
+    fn parse_object(&mut self) -> Result<JsonValue, JsonError> {
         let mut map = HashMap::new();
         loop {
             let mut peak = self.peak();
 
             if peak.is_some() {
-                match peak.unwrap() {
+                match peak.unwrap().ty {
                     RBrace => {
                         self.next();
                         break;
@@ -278,17 +313,17 @@ impl Parser {
                         self.next();
                         peak = self.peak();
                         if peak.is_some() {
-                            match peak.unwrap() {
+                            match peak.unwrap().ty {
                                 Colon => { self.next(); },
-                                _     => { panic!("Expected colon") }
+                                _     => { return Err(JsonError { msg: "Expected colon" }) }
                             }
                         } else { panic!("Unexpected end of object") }
 
-                        map.insert(s, self.parse());
+                        map.insert(s, try!(self.parse()));
 
                         peak = self.peak();
                         if peak.is_some() {
-                            match peak.unwrap() {
+                            match peak.unwrap().ty {
                                 Comma  => { self.next(); },
                                 RBrace => {
                                     self.next();
@@ -298,11 +333,13 @@ impl Parser {
                             }
                         }
                     },
-                    _   => panic!("Expected right brace or string")
+                    _   => return Err(JsonError {
+                        msg: "Expected right brace or string"
+                    })
                 }
             }
         }
-        JsonObject(JsonMap { fields: map })
+        Ok(JsonObject(JsonMap { fields: map }))
     }
 }
 
@@ -325,9 +362,9 @@ enum JsonValue {
 }
 
 impl JsonValue {
-    fn from_string(s: String) -> JsonValue {
+    fn from_string(s: String) -> Result<JsonValue, JsonError> {
         let mut lexer = Lexer::new(s);
-        let mut parser = Parser::new(&mut lexer);
+        let mut parser = try!(Parser::new(&mut lexer));
         parser.parse()
     }
 }
@@ -335,7 +372,7 @@ impl JsonValue {
 fn main() {
     let src = "{\"test\": [1, 2, 3.0000], \"lol\":1 }".to_string();
     let mut lexer = Lexer::new(src);
-    let mut parser = Parser::new(&mut lexer);
+    let mut parser = Parser::new(&mut lexer).unwrap();
     println!("{}", parser.parse());
 }
 
