@@ -265,7 +265,7 @@ impl Parser {
                     DecimalNum(f)   => Ok(JsonFloat(f)),
                     LBracket        => self.parse_array(),
                     LBrace          => self.parse_object(),
-                    other           => Err(JsonError { msg: "Unexpected token" } )
+                    _               => Err(JsonError { msg: "Unexpected token" } )
                 }
             }
             None => {
@@ -345,14 +345,11 @@ impl Parser {
                 }
             }
         }
-        Ok(JsonObject(JsonMap { fields: map }))
+        Ok(JsonObject(map))
     }
 }
 
-#[deriving(Show, PartialEq)]
-struct JsonMap {
-    fields: HashMap<String, JsonValue>
-}
+type JsonMap = HashMap<String, JsonValue>;
 
 #[deriving(Show, PartialEq)]
 enum JsonValue {
@@ -451,7 +448,7 @@ fn arr_all_types() {
     let json_string = "[true, false, null, 0, 0.0, [], {}]".to_string();
     let json        = JsonValue::from_string(json_string).unwrap();
     
-    let map = JsonMap { fields: HashMap::new() };
+    let map = HashMap::new();
     let arr = vec![
         JsonBool(true), JsonBool(false), JsonNull, JsonInt(0),
         JsonFloat(0.0), JsonArray(vec!()), JsonObject(map)
@@ -472,7 +469,7 @@ fn empty_object() {
 
     match json {
         JsonObject(map) => {
-            assert!(map.fields.is_empty())
+            assert!(map.is_empty())
         }
         _ => panic!("Expected JsonObject")
     }
@@ -485,11 +482,10 @@ fn object_vals() {
 
     let mut hash_map = HashMap::new();
     hash_map.insert("key".to_string(), JsonString("value".to_string()));
-    let json_map = JsonMap { fields: hash_map };
 
     match json {
-        JsonObject(obj) => {
-            assert_eq!(obj, json_map);
+        JsonObject(map) => {
+            assert_eq!(map, hash_map);
         },
         _ => panic!("Expected JsonObject")
     }
