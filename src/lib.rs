@@ -6,7 +6,13 @@ use std::collections::HashMap;
 // TODO add line/column tracking
 #[deriving(Show)]
 struct JsonError {
-    msg: &'static str
+    msg: String
+}
+
+impl JsonError {
+    fn new(msg: String) -> JsonError {
+        JsonError { msg: msg }
+    }
 }
 
 struct StringReader {
@@ -116,9 +122,9 @@ impl Lexer {
                     }
                 },
                 None => {
-                    return Err(JsonError {
-                        msg: "Unexpected end of file in string literal"
-                    });
+                    return Err(JsonError::new(
+                        format!("Unexpected end of file in string literal")
+                    ));
                 }
             }
         }
@@ -154,7 +160,7 @@ impl Lexer {
         } else if ident_str == FALSE_LITERAL {
             Ok(self.tok(JsonBoolTok(false)))
         } else {
-            Err(JsonError { msg: "Unexpected identifier" })
+            Err(JsonError::new(format!("Unexpected identifier: {}", ident_str)))
         }
     }
 
@@ -180,12 +186,12 @@ impl Lexer {
         if has_period {
             match from_str::<f64>(num_str) {
                 Some(n) => Ok(self.tok(DecimalNum(n))),
-                None    => Err(JsonError { msg: "Invalid number format" })
+                None    => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
             }
         } else {
             match from_str::<i64>(num_str) {
                 Some(n) => Ok(self.tok(IntNum(n))),
-                None    => Err(JsonError { msg: "Invalid number format" })
+                None    => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
             }
         }
     }
@@ -266,11 +272,11 @@ impl Parser {
                     DecimalNum(f)   => Ok(JsonFloat(f)),
                     LBracket        => self.parse_array(),
                     LBrace          => self.parse_object(),
-                    _               => Err(JsonError { msg: "Unexpected token" } )
+                    o               => Err(JsonError::new(format!("Unexpected token: {}", o)))
                 }
             }
             None => {
-                Err(JsonError { msg: "Unexpected end of file" })
+                Err(JsonError::new(format!("Unexpected end of file")))
             }
         }
         
@@ -297,9 +303,9 @@ impl Parser {
                     }
                 }
             } else {
-                return Err(JsonError {
-                    msg: "Unexpected end of array"
-                })
+                return Err(JsonError::new(
+                    format!("Unexpected end of array")
+                ))
             }
         }
         Ok(JsonArray(vec))
@@ -322,7 +328,9 @@ impl Parser {
                         if peak.is_some() {
                             match peak.unwrap().ty {
                                 Colon => { self.next(); },
-                                _     => { return Err(JsonError { msg: "Expected colon" }) }
+                                _     => {
+                                    return Err(JsonError::new(format!("Expected colon")))
+                                }
                             }
                         } else { panic!("Unexpected end of object") }
 
@@ -340,9 +348,9 @@ impl Parser {
                             }
                         }
                     },
-                    _   => return Err(JsonError {
-                        msg: "Expected right brace or string"
-                    })
+                    _   => return Err(JsonError::new(
+                        format!("Expected right brace or string")
+                    ))
                 }
             }
         }
