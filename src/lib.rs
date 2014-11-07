@@ -375,13 +375,6 @@ impl JsonValue {
     }
 }
 
-fn main() {
-    let src = "{\"test\": [1, 2, 3.0000], \"lol\":1 }".to_string();
-    let mut lexer = Lexer::new(src);
-    let mut parser = Parser::new(&mut lexer).unwrap();
-    println!("{}", parser.parse());
-}
-
 // tests
 
 #[test]
