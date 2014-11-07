@@ -1,3 +1,4 @@
+use std::fmt;
 use std::collections::HashMap;
 
 // scanning
@@ -351,17 +352,29 @@ impl Parser {
 
 type JsonMap = HashMap<String, JsonValue>;
 
-#[deriving(Show, PartialEq)]
+#[deriving(PartialEq)]
 enum JsonValue {
     JsonObject(JsonMap),
     JsonArray(Vec<JsonValue>),
-    // Using `String` as enum name would cause naming collisions
-    // with std::string::String
     JsonString(String),
     JsonBool(bool),
     JsonInt(i64),
     JsonFloat(f64),
     JsonNull
+}
+
+impl fmt::Show for JsonValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::FormatError> {
+        match self {
+            &JsonObject(ref map)    => map.fmt(f),
+            &JsonArray(ref arr)     => arr.fmt(f),
+            &JsonString(ref s)      => s.fmt(f),
+            &JsonBool(ref b)        => b.fmt(f),
+            &JsonInt(ref i)         => i.fmt(f),
+            &JsonFloat(ref fl)      => fl.fmt(f),
+            &JsonNull               => NULL_LITERAL.fmt(f)
+        }
+    }
 }
 
 impl JsonValue {
