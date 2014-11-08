@@ -8,7 +8,8 @@ JSON parser made in rust.
 A `JsonValue` can be retreived with `JsonValue::from_string`:
 
 ```rust
-let json = JsonValue::from_string("{\"hello\":\"world\"}".to_string());
+let src  = "{\"hello\":\"world\"}".to_string();
+let json = JsonValue::from_string(src).unwrap();
 ```
 
 `JsonValue` can be an object, array, boolean, null, string, integer, or float value depending on the input string.
