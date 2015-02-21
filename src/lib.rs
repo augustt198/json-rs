@@ -1,10 +1,12 @@
 use std::fmt;
 use std::collections::HashMap;
+use std::str::FromStr;
+use std::fmt::Debug;
 
 // scanning
 
 // TODO add line/column tracking
-#[deriving(Show)]
+#[derive(Debug)]
 struct JsonError {
     msg: String
 }
@@ -16,10 +18,10 @@ impl JsonError {
 }
 
 struct StringReader {
-    pos:    uint,
+    pos:    usize,
     source: String,
-    col:    uint,
-    line:   uint
+    col:    usize,
+    line:   usize
 }
 
 impl StringReader {
@@ -73,16 +75,16 @@ impl Lexer {
         loop {
             let c = match self.reader.read() {
                 Some(chr) => chr,
-                None => return Ok(self.tok(EOF))
+                None => return Ok(self.tok(TokenType::EOF))
             };
 
             let val =
-            if      c == '{' { self.tok(LBrace) }
-            else if c == '}' { self.tok(RBrace) }
-            else if c == '[' { self.tok(LBracket) }
-            else if c == ']' { self.tok(RBracket) }
-            else if c == ',' { self.tok(Comma) }
-            else if c == ':' { self.tok(Colon) }
+            if      c == '{' { self.tok(TokenType::LBrace) }
+            else if c == '}' { self.tok(TokenType::RBrace) }
+            else if c == '[' { self.tok(TokenType::LBracket) }
+            else if c == ']' { self.tok(TokenType::RBracket) }
+            else if c == ',' { self.tok(TokenType::Comma) }
+            else if c == ':' { self.tok(TokenType::Colon) }
             
             else if c == '"'    { try!(self.next_str_token()) }
             else if is_alpha(c) { try!(self.next_ident_token(c)) }
@@ -129,13 +131,13 @@ impl Lexer {
             }
         }
         Ok(Token {
-            ty:     StringTok(s),
+            ty:     TokenType::StringTok(s),
             line:   line,
             cols:   (start_pos, end_pos)
         })
     }
 
-    // Next "identifier" token (JsonBool value or null)
+    // Next "identifier" token (JsonValue::JsonBool value or null)
     fn next_ident_token(&mut self, first: char) -> Result<Token, JsonError> {
         let mut res = String::new();
         res.push(first);
@@ -154,11 +156,11 @@ impl Lexer {
         }
         let ident_str = res.as_slice();
         if ident_str == NULL_LITERAL {
-            Ok(self.tok(JsonNullTok))
+            Ok(self.tok(TokenType::JsonNullTok))
         } else if ident_str == TRUE_LITERAL {
-            Ok(self.tok(JsonBoolTok(true)))
+            Ok(self.tok(TokenType::JsonBoolTok(true)))
         } else if ident_str == FALSE_LITERAL {
-            Ok(self.tok(JsonBoolTok(false)))
+            Ok(self.tok(TokenType::JsonBoolTok(false)))
         } else {
             Err(JsonError::new(format!("Unexpected identifier: {}", ident_str)))
         }
@@ -184,27 +186,27 @@ impl Lexer {
         }
         let num_str = res.as_slice();
         if has_period {
-            match from_str::<f64>(num_str) {
-                Some(n) => Ok(self.tok(DecimalNum(n))),
-                None    => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
+            match FromStr::from_str(num_str) {
+                Ok(n)  => Ok(self.tok(TokenType::DecimalNum(n))),
+                Err(e) => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
             }
         } else {
-            match from_str::<i64>(num_str) {
-                Some(n) => Ok(self.tok(IntNum(n))),
-                None    => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
+            match FromStr::from_str(num_str) {
+                Ok(n)  => Ok(self.tok(TokenType::IntNum(n))),
+                Err(e) => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
             }
         }
     }
 }
 
-#[deriving(Show, Clone)]
+#[derive(Debug, Clone)]
 struct Token {
     ty:     TokenType,
-    line:   uint,
-    cols:   (uint, uint)
+    line:   usize,
+    cols:   (usize, usize)
 }
 
-#[deriving(Show, Clone)]
+#[derive(Debug, Clone)]
 enum TokenType {
     LBrace,             // {
     RBrace,             // }
@@ -213,8 +215,8 @@ enum TokenType {
     StringTok(String),  // "..."
     DecimalNum(f64),    // [0-9]+.[0-9]+
     IntNum(i64),        // [0-9]+
-    JsonBoolTok(bool),   // true|false
-    JsonNullTok,            // null
+    JsonBoolTok(bool),  // true|false
+    JsonNullTok,        // null
     Comma,              // ,
     Colon,              // :
 
@@ -225,7 +227,7 @@ enum TokenType {
 
 struct Parser {
     tokens: Vec<Token>,
-    pos:    uint
+    pos:    usize
 }
 
 impl Parser {
@@ -234,7 +236,7 @@ impl Parser {
         loop {
             let token = try!(lex.next_token());
             let done_reading = match token.ty {
-                EOF => true,
+                TokenType::EOF => true,
                 _   => false
             };
             parser.tokens.push(token);
@@ -265,14 +267,14 @@ impl Parser {
         match self.next() {
             Some(first) => {
                 match first.ty {
-                    JsonBoolTok(b)  => Ok(JsonBool(b)),
-                    JsonNullTok     => Ok(JsonNull),
-                    StringTok(s)    => Ok(JsonString(s)),
-                    IntNum(i)       => Ok(JsonInt(i)),
-                    DecimalNum(f)   => Ok(JsonFloat(f)),
-                    LBracket        => self.parse_array(),
-                    LBrace          => self.parse_object(),
-                    o               => Err(JsonError::new(format!("Unexpected token: {}", o)))
+                    TokenType::JsonBoolTok(b)  => Ok(JsonValue::JsonBool(b)),
+                    TokenType::JsonNullTok     => Ok(JsonValue::JsonNull),
+                    TokenType::StringTok(s)    => Ok(JsonValue::JsonString(s)),
+                    TokenType::IntNum(i)       => Ok(JsonValue::JsonInt(i)),
+                    TokenType::DecimalNum(f)   => Ok(JsonValue::JsonFloat(f)),
+                    TokenType::LBracket        => self.parse_array(),
+                    TokenType::LBrace          => self.parse_object(),
+                    o               => Err(JsonError::new(format!("Unexpected token")))
                 }
             }
             None => {
@@ -289,14 +291,14 @@ impl Parser {
 
             if peak.is_some() {
                 match peak.unwrap().ty {
-                    RBracket    => { self.next(); break },
+                    TokenType::RBracket    => { self.next(); break },
                     _           => {
                         vec.push(try!(self.parse()));
                         peak = self.peak();
                         
                         if peak.is_some() {
                             match peak.unwrap().ty {
-                                Comma   => { self.next(); }, // consume comma
+                                TokenType::Comma   => { self.next(); }, // consume comma
                                 _       => {}                // keep more elements or `]`
                             }
                         }
@@ -308,7 +310,7 @@ impl Parser {
                 ))
             }
         }
-        Ok(JsonArray(vec))
+        Ok(JsonValue::JsonArray(vec))
     }
 
     fn parse_object(&mut self) -> Result<JsonValue, JsonError> {
@@ -318,16 +320,16 @@ impl Parser {
 
             if peak.is_some() {
                 match peak.unwrap().ty {
-                    RBrace => {
+                    TokenType::RBrace => {
                         self.next();
                         break;
                     },
-                    StringTok(s) => {
+                    TokenType::StringTok(s) => {
                         self.next();
                         peak = self.peak();
                         if peak.is_some() {
                             match peak.unwrap().ty {
-                                Colon => { self.next(); },
+                                TokenType::Colon => { self.next(); },
                                 _     => {
                                     return Err(JsonError::new(format!("Expected colon")))
                                 }
@@ -339,8 +341,8 @@ impl Parser {
                         peak = self.peak();
                         if peak.is_some() {
                             match peak.unwrap().ty {
-                                Comma  => { self.next(); },
-                                RBrace => {
+                                TokenType::Comma  => { self.next(); },
+                                TokenType::RBrace => {
                                     self.next();
                                     break;
                                 }
@@ -354,13 +356,13 @@ impl Parser {
                 }
             }
         }
-        Ok(JsonObject(map))
+        Ok(JsonValue::JsonObject(map))
     }
 }
 
 type JsonMap = HashMap<String, JsonValue>;
 
-#[deriving(PartialEq)]
+#[derive(PartialEq)]
 enum JsonValue {
     JsonObject(JsonMap),
     JsonArray(Vec<JsonValue>),
@@ -372,18 +374,19 @@ enum JsonValue {
 }
 
 impl fmt::Show for JsonValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::FormatError> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            &JsonObject(ref map)    => map.fmt(f),
-            &JsonArray(ref arr)     => arr.fmt(f),
-            &JsonString(ref s)      => s.fmt(f),
-            &JsonBool(ref b)        => b.fmt(f),
-            &JsonInt(ref i)         => i.fmt(f),
-            &JsonFloat(ref fl)      => fl.fmt(f),
-            &JsonNull               => NULL_LITERAL.fmt(f)
+            &JsonValue::JsonObject(ref map)    => map.fmt(f),
+            &JsonValue::JsonArray(ref arr)     => arr.fmt(f),
+            &JsonValue::JsonString(ref s)      => s.fmt(f),
+            &JsonValue::JsonBool(ref b)        => b.fmt(f),
+            &JsonValue::JsonInt(ref i)         => i.fmt(f),
+            &JsonValue::JsonFloat(ref fl)      => fl.fmt(f),
+            &JsonValue::JsonNull               => NULL_LITERAL.fmt(f)
         }
     }
 }
+
 
 impl JsonValue {
     fn from_string(s: String) -> Result<JsonValue, JsonError> {
@@ -401,8 +404,8 @@ fn null_literal() {
     let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
-        JsonNull => {}, // ok
-        _ => panic!("Expected JsonNull")
+        JsonValue::JsonNull => {}, // ok
+        _ => panic!("Expected JsonValue::JsonNull")
     }
 }
 
@@ -412,8 +415,8 @@ fn true_literal() {
     let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
-        JsonBool(true) => {}, // ok
-        _ => panic!("Expected JsonBool(true)")
+        JsonValue::JsonBool(true) => {}, // ok
+        _ => panic!("Expected JsonValue::JsonBool(true)")
     }
 }
 
@@ -423,8 +426,8 @@ fn false_literal() {
     let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
-        JsonBool(false) => {}, // ok
-        _ => panic!("Expected JsonBool(false)")
+        JsonValue::JsonBool(false) => {}, // ok
+        _ => panic!("Expected JsonValue::JsonBool(false)")
     }
 }
 
@@ -434,8 +437,8 @@ fn int_literal() {
     let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
-        JsonInt(42) => {}, // ok
-        _ => panic!("Expected JsonInt(42)")
+        JsonValue::JsonInt(42) => {}, // ok
+        _ => panic!("Expected JsonValue::JsonInt(42)")
     }
 }
 
@@ -445,8 +448,8 @@ fn float_literal() {
     let json        = JsonValue::from_string(json_string).unwrap();
     
     match json {
-        JsonFloat(42f64) => {}, // ok
-        _ => panic!("Expected JsonFloat(42)")
+        JsonValue::JsonFloat(42f64) => {}, // ok
+        _ => panic!("Expected JsonValue::JsonFloat(42)")
     }
 }
 
@@ -459,8 +462,8 @@ fn empty_arr() {
     let empty_arr: Vec<JsonValue> = vec!();
 
     match json {
-        JsonArray(empty_arr) => {}, // ok
-        _ => panic!("Expected JsonArray([])")
+        JsonValue::JsonArray(empty_arr) => {}, // ok
+        _ => panic!("Expected JsonValue::JsonArray([])")
     }
 }
 
@@ -471,15 +474,15 @@ fn arr_all_types() {
     
     let map = HashMap::new();
     let arr = vec![
-        JsonBool(true), JsonBool(false), JsonNull, JsonInt(0),
-        JsonFloat(0.0), JsonArray(vec!()), JsonObject(map)
+        JsonValue::JsonBool(true), JsonValue::JsonBool(false), JsonValue::JsonNull, JsonValue::JsonInt(0),
+        JsonValue::JsonFloat(0.0), JsonValue::JsonArray(vec!()), JsonValue::JsonObject(map)
     ];
 
     match json {
-        JsonArray(vec) => {
+        JsonValue::JsonArray(vec) => {
             assert_eq!(vec, arr);
         },
-        _ => panic!("Expected JsonArray([...])")
+        _ => panic!("Expected JsonValue::JsonArray([...])")
     }
 }
 
@@ -489,10 +492,10 @@ fn empty_object() {
     let json        = JsonValue::from_string(json_string).unwrap();
 
     match json {
-        JsonObject(map) => {
+        JsonValue::JsonObject(map) => {
             assert!(map.is_empty())
         }
-        _ => panic!("Expected JsonObject")
+        _ => panic!("Expected JsonValue::JsonObject")
     }
 }
 
@@ -502,13 +505,13 @@ fn object_vals() {
     let json        = JsonValue::from_string(json_string).unwrap();
 
     let mut hash_map = HashMap::new();
-    hash_map.insert("key".to_string(), JsonString("value".to_string()));
+    hash_map.insert("key".to_string(), JsonValue::JsonString("value".to_string()));
 
     match json {
-        JsonObject(map) => {
+        JsonValue::JsonObject(map) => {
             assert_eq!(map, hash_map);
         },
-        _ => panic!("Expected JsonObject")
+        _ => panic!("Expected JsonValue::JsonObject")
     }
 }
 
