@@ -7,7 +7,7 @@ use std::fmt::Debug;
 
 // TODO add line/column tracking
 #[derive(Debug)]
-struct JsonError {
+pub struct JsonError {
     msg: String
 }
 
@@ -360,10 +360,10 @@ impl Parser {
     }
 }
 
-type JsonMap = HashMap<String, JsonValue>;
+pub type JsonMap = HashMap<String, JsonValue>;
 
 #[derive(PartialEq)]
-enum JsonValue {
+pub enum JsonValue {
     JsonObject(JsonMap),
     JsonArray(Vec<JsonValue>),
     JsonString(String),
@@ -389,7 +389,7 @@ impl fmt::Debug for JsonValue {
 
 
 impl JsonValue {
-    fn from_string(s: String) -> Result<JsonValue, JsonError> {
+    pub fn from_string(s: String) -> Result<JsonValue, JsonError> {
         let mut lexer = Lexer::new(s);
         let mut parser = try!(Parser::new(&mut lexer));
         parser.parse()
