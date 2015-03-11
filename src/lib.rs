@@ -373,7 +373,7 @@ enum JsonValue {
     JsonNull
 }
 
-impl fmt::Show for JsonValue {
+impl fmt::Debug for JsonValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             &JsonValue::JsonObject(ref map)    => map.fmt(f),
