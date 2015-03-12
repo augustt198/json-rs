@@ -387,6 +387,17 @@ impl fmt::Debug for JsonValue {
     }
 }
 
+impl fmt::Display for JsonValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let res: String = format!("{:?}", self);
+        display_wrapper(res, f)
+    }
+}
+
+fn display_wrapper(str: String, f: &mut fmt::Formatter)
+    -> Result<(), fmt::Error> {
+    str.fmt(f)
+}
 
 impl JsonValue {
     pub fn from_string(s: String) -> Result<JsonValue, JsonError> {
