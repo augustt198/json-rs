@@ -389,14 +389,13 @@ impl fmt::Debug for JsonValue {
 
 impl fmt::Display for JsonValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let res: String = format!("{:?}", self);
-        display_wrapper(res, f)
+        display_wrapper(self, f)
     }
 }
 
-fn display_wrapper(str: String, f: &mut fmt::Formatter)
+fn display_wrapper(json: &JsonValue, f: &mut fmt::Formatter)
     -> Result<(), fmt::Error> {
-    str.fmt(f)
+    json.fmt(f)
 }
 
 impl JsonValue {
