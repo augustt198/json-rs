@@ -1,3 +1,5 @@
+#![feature(core, collections)]
+
 use std::fmt;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -8,7 +10,7 @@ use std::fmt::Debug;
 // TODO add line/column tracking
 #[derive(Debug)]
 pub struct JsonError {
-    msg: String
+    pub msg: String
 }
 
 impl JsonError {
@@ -188,12 +190,12 @@ impl Lexer {
         if has_period {
             match FromStr::from_str(num_str) {
                 Ok(n)  => Ok(self.tok(TokenType::DecimalNum(n))),
-                Err(e) => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
+                Err(_) => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
             }
         } else {
             match FromStr::from_str(num_str) {
                 Ok(n)  => Ok(self.tok(TokenType::IntNum(n))),
-                Err(e) => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
+                Err(_) => Err(JsonError::new(format!("Invalid number format: {}", num_str)))
             }
         }
     }
@@ -274,7 +276,7 @@ impl Parser {
                     TokenType::DecimalNum(f)   => Ok(JsonValue::JsonFloat(f)),
                     TokenType::LBracket        => self.parse_array(),
                     TokenType::LBrace          => self.parse_object(),
-                    o               => Err(JsonError::new(format!("Unexpected token")))
+                    o => Err(JsonError::new(format!("Unexpected token: {:?}", o)))
                 }
             }
             None => {
