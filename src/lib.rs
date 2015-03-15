@@ -202,14 +202,14 @@ impl Lexer {
 }
 
 #[derive(Debug, Clone)]
-struct Token {
-    ty:     TokenType,
-    line:   usize,
-    cols:   (usize, usize)
+pub struct Token {
+    pub ty:     TokenType,
+    pub line:   usize,
+    pub cols:   (usize, usize)
 }
 
 #[derive(Debug, Clone)]
-enum TokenType {
+pub enum TokenType {
     LBrace,             // {
     RBrace,             // }
     LBracket,           // [
@@ -405,6 +405,21 @@ impl JsonValue {
         let mut lexer = Lexer::new(s);
         let mut parser = try!(Parser::new(&mut lexer));
         parser.parse()
+    }
+
+    pub fn tokenize(s: String) -> Result<Vec<Token>, JsonError> {
+        let mut lexer = Lexer::new(s);
+        let mut arr = vec![];
+        loop {
+            let tok = try!(lexer.next_token());
+            arr.push(tok.clone());
+            match tok.ty {
+                TokenType::EOF => break,
+                _              => {}
+            }
+        }
+
+        Ok(arr)
     }
 }
 
